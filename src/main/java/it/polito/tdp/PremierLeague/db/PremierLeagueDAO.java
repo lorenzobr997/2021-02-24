@@ -5,7 +5,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import it.polito.tdp.PremierLeague.model.Action;
 import it.polito.tdp.PremierLeague.model.Match;
 import it.polito.tdp.PremierLeague.model.Player;
@@ -13,17 +16,24 @@ import it.polito.tdp.PremierLeague.model.Team;
 
 public class PremierLeagueDAO {
 	
-	public List<Player> listAllPlayers(){
-		String sql = "SELECT * FROM Players";
+	public List<Player> listAllPlayers(Match g){
+		String sql = "SELECT distinct a.PlayerID as id, p.Name as n, a.TeamID AS t "
+				+ "FROM matches m, actions a, players p "
+				+ "WHERE m.MatchID = a.MatchID AND "
+				+ "		p.PlayerID = a.PlayerID AND "
+				+ "		m.MatchID = ?";
+		
 		List<Player> result = new ArrayList<Player>();
 		Connection conn = DBConnect.getConnection();
 
 		try {
 			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, g.getMatchID());
 			ResultSet res = st.executeQuery();
 			while (res.next()) {
 
-				Player player = new Player(res.getInt("PlayerID"), res.getString("Name"));
+				Player player = new Player(res.getInt("id"), res.getString("n"));
+				player.setTeamID(res.getInt("t"));
 				result.add(player);
 			}
 			conn.close();
@@ -34,6 +44,35 @@ public class PremierLeagueDAO {
 			return null;
 		}
 	}
+	
+	public Map<Integer, Double> listEff(Match g){
+		String sql = "SELECT distinct a.PlayerID as id, a.TotalSuccessfulPassesAll as p , a.Assists as a, a.TimePlayed as t "
+				+ "FROM matches m, actions a, players p "
+				+ "WHERE m.MatchID = a.MatchID AND "
+				+ "		p.PlayerID = a.PlayerID AND "
+				+ "		m.MatchID = ?";
+		
+		Map<Integer, Double> result = new HashMap<>();
+		Connection conn = DBConnect.getConnection();
+
+		try {
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, g.getMatchID());
+			ResultSet res = st.executeQuery();
+			while (res.next()) {
+
+				double e = (double)(res.getInt("p") + res.getInt("a"))/res.getInt("t");
+				result.put(res.getInt("id"), e);
+			}
+			conn.close();
+			return result;
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	
 	
 	public List<Team> listAllTeams(){
 		String sql = "SELECT * FROM Teams";
